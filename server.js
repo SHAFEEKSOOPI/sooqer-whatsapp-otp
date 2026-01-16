@@ -45,7 +45,7 @@ otpStore.set(phone, {
 /* ===============================
    SEND WHATSAPP OTP
    =============================== */
-aapp.post("/api/send-whatsapp-otp", async (req, res) => {
+app.post("/api/send-whatsapp-otp", async (req, res) => {
 
   if (!client) {
     return res.status(503).json({
