@@ -11,10 +11,20 @@ app.use(bodyParser.json());
 /* ===============================
    TWILIO CONFIG
    =============================== */
-const client = twilio(
-  process.env.TWILIO_ACCOUNT_SID,
+let client = null;
+
+if (
+  process.env.TWILIO_ACCOUNT_SID &&
   process.env.TWILIO_AUTH_TOKEN
-);
+) {
+  client = twilio(
+    process.env.TWILIO_ACCOUNT_SID,
+    process.env.TWILIO_AUTH_TOKEN
+  );
+  console.log("✅ Twilio client initialized");
+} else {
+  console.warn("⚠️ TWILIO credentials missing — WhatsApp OTP disabled");
+}
 
 const WHATSAPP_FROM = "whatsapp:+14155238886";
 
@@ -35,22 +45,14 @@ otpStore.set(phone, {
 /* ===============================
    SEND WHATSAPP OTP
    =============================== */
-app.post("/api/send-whatsapp-otp", async (req, res) => {
-  const { phone } = req.body;
+aapp.post("/api/send-whatsapp-otp", async (req, res) => {
 
-  if (!phone || !phone.startsWith("+")) {
-    return res.json({ success: false, message: "Invalid phone number" });
-  }
-
-  const existing = otpStore.get(phone);
-
-  if (existing && existing.resendCount >= 3) {
-    return res.json({
+  if (!client) {
+    return res.status(503).json({
       success: false,
-      message: "OTP resend limit reached"
+      message: "WhatsApp service not available"
     });
   }
-
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
   otpStore.set(phone, {
