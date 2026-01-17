@@ -6,7 +6,8 @@ require("dotenv").config();
 
 const app = express();
 app.use(cors());
-app.use(bodyParser.json());
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 /* ===============================
    TWILIO CONFIG
@@ -46,35 +47,51 @@ otpStore.set(phone, {
    SEND WHATSAPP OTP
    =============================== */
 app.post("/api/send-whatsapp-otp", async (req, res) => {
-
-  if (!client) {
-    return res.status(503).json({
-      success: false,
-      message: "WhatsApp service not available"
-    });
-  }
-  const otp = Math.floor(100000 + Math.random() * 900000).toString();
-
-  otpStore.set(phone, {
-    otp,
-    expires: Date.now() + 5 * 60 * 1000,
-    attempts: 0,
-    resendCount: existing ? existing.resendCount + 1 : 1
-  });
-
   try {
+    if (!client) {
+      return res.status(503).json({
+        success: false,
+        message: "WhatsApp service not available"
+      });
+    }
+
+    const { phone } = req.body;
+
+    if (!phone) {
+      return res.status(400).json({
+        success: false,
+        message: "Phone number required"
+      });
+    }
+
+    const existing = otpStore.get(phone);
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+    otpStore.set(phone, {
+      otp,
+      expires: Date.now() + 5 * 60 * 1000,
+      attempts: 0,
+      resendCount: existing ? existing.resendCount + 1 : 1
+    });
+
     await client.messages.create({
       from: WHATSAPP_FROM,
       to: `whatsapp:${phone}`,
       body: `Your Sooqer OTP is ${otp}. Valid for 5 minutes.`
     });
 
-    res.json({ success: true });
+    return res.json({ success: true });
+
   } catch (err) {
-    console.error(err.message);
-    res.json({ success: false, message: "WhatsApp send failed" });
+    console.error("WhatsApp OTP error:", err);
+    return res.status(500).json({
+      success: false,
+      message: "WhatsApp send failed"
+    });
   }
 });
+
 
 /* ===============================
    VERIFY WHATSAPP OTP
