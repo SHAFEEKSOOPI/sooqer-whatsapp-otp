@@ -1,8 +1,6 @@
 const express = require("express");
 const cors = require("cors");
-const bodyParser = require("body-parser");
 const twilio = require("twilio");
-require("dotenv").config();
 
 const app = express();
 app.use(cors());
@@ -14,10 +12,7 @@ app.use(express.urlencoded({ extended: true }));
    =============================== */
 let client = null;
 
-if (
-  process.env.TWILIO_ACCOUNT_SID &&
-  process.env.TWILIO_AUTH_TOKEN
-) {
+if (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN) {
   client = twilio(
     process.env.TWILIO_ACCOUNT_SID,
     process.env.TWILIO_AUTH_TOKEN
@@ -30,18 +25,9 @@ if (
 const WHATSAPP_FROM = "whatsapp:+14155238886";
 
 /* ===============================
-   IN-MEMORY OTP STORE (DEMO)
+   IN-MEMORY OTP STORE
    =============================== */
 const otpStore = new Map();
-
-/*
-otpStore.set(phone, {
-  otp,
-  expires,
-  attempts,
-  resendCount
-})
-*/
 
 /* ===============================
    SEND WHATSAPP OTP
@@ -84,20 +70,27 @@ app.post("/api/send-whatsapp-otp", async (req, res) => {
     return res.json({ success: true });
 
   } catch (err) {
-    console.error("WhatsApp OTP error:", err);
+    console.error("❌ WhatsApp OTP error:", err);
     return res.status(500).json({
       success: false,
-      message: "WhatsApp send failed"
+      message: "Internal server error"
     });
   }
 });
-
 
 /* ===============================
    VERIFY WHATSAPP OTP
    =============================== */
 app.post("/api/verify-whatsapp-otp", (req, res) => {
   const { phone, otp } = req.body;
+
+  if (!phone || !otp) {
+    return res.status(400).json({
+      success: false,
+      message: "Phone and OTP required"
+    });
+  }
+
   const record = otpStore.get(phone);
 
   if (!record) {
@@ -121,14 +114,13 @@ app.post("/api/verify-whatsapp-otp", (req, res) => {
   }
 
   otpStore.delete(phone);
-  res.json({ success: true });
+  return res.json({ success: true });
 });
 
 /* ===============================
    START SERVER
    =============================== */
 const PORT = process.env.PORT || 3000;
-
 app.listen(PORT, () => {
   console.log(`✅ WhatsApp OTP server running on port ${PORT}`);
 });
